@@ -2,11 +2,15 @@ import logging
 import os
 import sys
 
-import aiohttp
+import requests
 
 from cron_schedular.cron_job import cron_job, scheduler
 from wecom_app_svr import WecomAppServer, RspTextMsg, RspImageMsg, RspVideoMsg
 from dotenv import load_dotenv
+
+load_dotenv()
+dify_url = os.getenv("DIFY_URL")
+dify_api_key = os.getenv("DIFY_API_KEY")
 
 
 def msg_handler(req_msg):
@@ -35,14 +39,31 @@ def event_handler(req_msg):
         ret.content = f'msg_type: {req_msg.msg_type}\n群会话ID: {req_msg.chat_id}\n查询用法请回复: help'
     return ret
 
-@cron_job(hour=17, minute=49)
-def fire():
-    print("定时任务执行")
+@cron_job(hour=19, minute=2)
+def call_dify(user: str = "abc-123", content: str = "你好"):
+
+    headers = {
+        "Authorization": "Bearer {}".format(dify_api_key),
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "inputs": {"content": content},
+        "response_mode": "blocking",
+        "user": user
+    }
+
+    response = requests.post(dify_url, headers=headers, json=payload)
+
+    if response.status_code != 200:
+        logging.error("call dify failed \n {}".format(response.json()))
+    else:
+        logging.info("call dify success \n {}".format(response.json()))
 
 
 def main():
-    scheduler.start()
     load_dotenv()
+    scheduler.start()
+
     logging.basicConfig(stream=sys.stdout)
     logging.getLogger().setLevel(logging.INFO)
 
